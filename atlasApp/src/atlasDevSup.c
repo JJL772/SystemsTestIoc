@@ -1,4 +1,4 @@
-
+#define USE_TYPED_DSET
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -8,29 +8,25 @@
 #include <epicsVersion.h>
 #include <epicsExport.h>
 
-#if EPICS_VERSION >= 7
-#include <int64inRecord.h>
+static long longin_init_record(struct dbCommon* rec);
+static long longin_read(longinRecord* rec);
+
+#ifndef HAS_longindset
+typedef struct {
+  dset common;
+  long (*read_longin)(longinRecord* record);
+} longindset;
 #endif
 
-static long longin_init_record(void* rec);
-static long longin_read(void* rec);
-
-struct {
-	long number;
-	DEVSUPFUN report;
-	DEVSUPFUN init;
-	DEVSUPFUN init_record;
-	DEVSUPFUN get_ioint_info;
-	DEVSUPFUN read_longin;
-	DEVSUPFUN linconv;
-} devLongRandom = {
-	6,
-	NULL,
-	NULL,
-	longin_init_record,
-	NULL,
-	longin_read,
-	NULL
+longindset devLongRandom = {
+  .common = {
+    .number = 5,
+    .report = NULL,
+    .init = NULL,
+    .init_record = longin_init_record,
+    .get_ioint_info = NULL,
+  },
+  .read_longin = longin_read,
 };
 
 epicsExportAddress(dset, devLongRandom);
@@ -40,9 +36,9 @@ struct longinPvt {
 	int off;
 };
 
-static long longin_init_record(void* rec)
+static long longin_init_record(struct dbCommon* rec)
 {
-	longinRecord* prec = rec;
+	longinRecord* prec = (longinRecord*)rec;
 	prec->dpvt = malloc(sizeof(struct longinPvt));
 	struct longinPvt* pvt = prec->dpvt;
 
@@ -53,7 +49,7 @@ static long longin_init_record(void* rec)
 	return 0;
 }
 
-static long longin_read(void* rec)
+static long longin_read(longinRecord* rec)
 {
 	longinRecord* prec = rec;
 	struct longinPvt* pvt = prec->dpvt;
